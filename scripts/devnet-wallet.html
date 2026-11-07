@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/styles.css">
+  <title>Devnet payment review — Boothproof</title>
+</head>
+<body data-mode="devnet" data-view="customer">
+  <main class="customer-wrap">
+    <a class="back-link" id="statement" hidden>← Customer statement</a>
+    <section class="panel customer-panel">
+      <div class="customer-top"><span class="eyebrow" id="invoice">Boothproof</span><span class="context-badge" id="wallet-mode">Solana Devnet</span></div>
+      <h1 id="wallet-title">Review a test payment</h1>
+      <p class="customer-amount" id="amount">Preparing…</p>
+      <dl class="payment-facts" id="facts" hidden>
+        <div><dt>Payer</dt><dd class="mono" id="payer"></dd></div>
+        <div><dt>Receiving wallet</dt><dd class="mono" id="recipient"></dd></div>
+        <div><dt>Invoice reference</dt><dd class="mono" id="reference"></dd></div>
+        <div><dt>USDC mint</dt><dd class="mono" id="mint"></dd></div>
+      </dl>
+      <p class="customer-help" id="status" role="status">Looking for Phantom in this browser.</p>
+      <div class="payment-buttons">
+        <button class="button quiet" id="connect" disabled>Connect Phantom</button>
+        <button class="button primary" id="review" disabled>Review in Phantom</button>
+        <a class="button quiet" id="refresh-payment" href="/" hidden>Refresh payment status</a>
+      </div>
+      <dl class="payment-facts" id="result" hidden>
+        <div><dt>Public signature</dt><dd><a class="text-link mono" id="signature" target="_blank" rel="noreferrer"></a></dd></div>
+      </dl>
+      <button class="button quiet small" id="copy-signature" hidden>Copy signature</button>
+    </section>
+  </main>
+  <script type="module" src="/wallet.js"></script>
+</body>
+</html>

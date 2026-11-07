@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Verify Solana Pay checkouts and reconcile client invoices, partial payments, and outstanding USDC balances.">
+    <meta name="theme-color" content="#080a0d">
+    <title>Boothproof — Invoice recovery</title>
+    <link rel="icon" href="/mark.svg" type="image/svg+xml">
+    <link rel="preload" href="/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="/fonts/space-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="/styles.css">
+    <script type="module" src="/app.js"></script>
+  </head>
+  <body>
+    <a class="skip" href="#content">Skip to content</a>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="brand" href="/" aria-label="Boothproof home">
+          <img src="/mark.svg" width="34" height="34" alt="">
+          <span><span class="brand-name">Boothproof</span><span class="brand-caption">PAYMENT OPERATIONS</span></span>
+        </a>
+        <nav id="navigation" aria-label="Workspace">
+          <a href="#invoices" data-view="invoices"><svg class="icon" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 2h8v12l-2-1-2 1-2-1-2 1V2ZM6 5h4M6 8h4" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>Invoices</a>
+          <a href="#recovery" data-view="recovery"><svg class="icon" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M13 6a5 5 0 1 0 .4 4M13 2v4H9" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>Recovery</a>
+          <a href="#guide" data-view="guide"><svg class="icon" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 4a5 5 0 0 0-5-1v9a6 6 0 0 1 5 1 6 6 0 0 1 5-1V3a5 5 0 0 0-5 1Zm0 0v9" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>Guide</a>
+        </nav>
+        <label class="mode-control" id="mode-control">
+          <span class="mode-dot" aria-hidden="true"></span>
+          <select id="mode" aria-label="Payment workspace">
+            <option value="demo">Demo mode</option>
+            <option value="devnet">Solana Devnet</option>
+          </select>
+        </label>
+      </div>
+    </header>
+    <main id="content" class="shell" tabindex="-1" aria-busy="true">
+      <div class="loading-shell"><div class="skeleton skeleton-title" aria-hidden="true"></div><p class="loading" role="status">Opening your workspace…</p><div class="skeleton skeleton-stats" aria-hidden="true"></div><div class="skeleton-columns" aria-hidden="true"><div class="skeleton skeleton-panel"></div><div class="skeleton skeleton-panel"></div></div></div>
+    </main>
+    <footer class="shell footer">
+      <span><span class="footer-brand">Boothproof</span><span class="divider">/</span>Payments, with proof.</span>
+      <div class="footer-tools"><span class="footer-meta">Independent project · Solana Devnet · Test tokens only</span><button id="motion-toggle" class="motion-toggle" type="button" aria-pressed="false" hidden>Pause motion</button></div>
+    </footer>
+    <div id="notice" class="notice" role="status" aria-live="polite"></div>
+    <noscript><p class="shell">Enable JavaScript to use the checkout.</p></noscript>
+  </body>
+</html>

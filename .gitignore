@@ -1,0 +1,9 @@
+.env
+.env.local
+data/
+node_modules/
+test-results/
+*.log
+.playwright-cli/
+output/playwright/
+output/

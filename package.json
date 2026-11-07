@@ -1,0 +1,14 @@
+{
+  "name": "boothproof",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A local Solana Pay checkout and USDC invoice reconciliation desk",
+  "engines": { "node": ">=24.0.0" },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server/main.js",
+    "dev": "node --watch --env-file-if-exists=.env server/main.js",
+    "test": "node --test",
+    "devnet:check": "node --env-file-if-exists=.env scripts/check-devnet.js"
+  }
+}

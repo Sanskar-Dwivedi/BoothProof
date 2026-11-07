@@ -1,0 +1,22 @@
+[
+  {
+    "name": "invoices-table",
+    "source": "https://ui.spectrumhq.in/r/invoices-table.json",
+    "sha256": "73c297a10568a897695cc6760b439ea3a0ba2e04aec613aed6344fedfb238b1d"
+  },
+  {
+    "name": "stat-cards",
+    "source": "https://ui.spectrumhq.in/r/stat-cards.json",
+    "sha256": "40704565430386d6eb83dc9d8877162027665b7bead538072395f25661c5de67"
+  },
+  {
+    "name": "status-badge",
+    "source": "https://ui.spectrumhq.in/r/status-badge.json",
+    "sha256": "c8096a6746e2a76f0e94cb7f79c86b8c79bed1ae705b5dfd8953634fade4f7f7"
+  },
+  {
+    "name": "loading-button-dependencies",
+    "source": "https://ui.spectrumhq.in/r/loading-button-dependencies.json",
+    "sha256": "e67a9227d2060a464595047af137ef99141ea0f60960b628fef1d91ab668ad29"
+  }
+]

@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="420" height="200" viewBox="0 0 420 200" fill="none">
+  <defs>
+    <linearGradient id="route" x1="35" y1="158" x2="363" y2="33" gradientUnits="userSpaceOnUse"><stop stop-color="#9945ff"/><stop offset="1" stop-color="#14f195"/></linearGradient>
+    <radialGradient id="ambient"><stop stop-color="#9945ff" stop-opacity=".12"/><stop offset="1" stop-color="#9945ff" stop-opacity="0"/></radialGradient>
+  </defs>
+  <ellipse cx="250" cy="99" rx="163" ry="96" fill="url(#ambient)"/>
+  <path d="M29 154h83c20 0 20-45 40-45h33m103 0h33c20 0 20-62 40-62h31" stroke="#32333f"/>
+  <path d="M29 154h83c20 0 20-45 40-45h33m103 0h33c20 0 20-62 40-62h31" stroke="url(#route)" stroke-dasharray="3 7"/>
+  <circle cx="53" cy="154" r="19" fill="#14101e" stroke="#9945ff" stroke-opacity=".55"/>
+  <path d="M46 154h14m-5-5 5 5-5 5" stroke="#c8a5ff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <g transform="translate(181 24) rotate(8 54 75)">
+    <path d="M9 1h89a8 8 0 0 1 8 8v139l-10-5-11 5-10-5-11 5-10-5-11 5-10-5-11 5-10-5-11 5V9a8 8 0 0 1 8-8Z" fill="#11151c" stroke="#4b3d62"/>
+    <path d="M21 24h63m-63 11h41M21 109h63m-63 11h40" stroke="#6e6880" stroke-linecap="round"/>
+    <circle cx="54" cy="72" r="23" fill="#0b2820" stroke="#14f195" stroke-opacity=".3"/>
+    <path d="m43 72 7 7 15-16" stroke="#14f195" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <circle cx="363" cy="47" r="15" fill="#0b201b" stroke="#14f195" stroke-opacity=".5"/>
+  <path d="m357 47 4 4 8-8" stroke="#14f195" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="107" cy="46" r="3" fill="#9945ff" opacity=".6"/>
+  <circle cx="333" cy="165" r="2" fill="#14f195" opacity=".5"/>
+</svg>

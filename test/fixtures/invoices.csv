@@ -1,0 +1,3 @@
+invoice_number,client,title,amount,due_date
+INV-002,"Juniper, Co.",Copywriting,125.50,2026-11-01
+INV-003,Northstar Studio,Monthly maintenance,25.00,2026-12-01

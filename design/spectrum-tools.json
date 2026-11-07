@@ -1,0 +1,108 @@
+{
+  "tools": [
+    {
+      "name": "list_components",
+      "description": "List all available Spectrum UI components. Optionally filter by category (e.g. 'AI', 'Forms', 'Animation').",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "category": {
+            "type": "string",
+            "description": "Optional category filter. Use list_categories to see valid values."
+          }
+        },
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "search_components",
+      "description": "Search Spectrum UI components by keyword. Returns ranked results by relevance.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Search term — e.g. 'chat', 'animated drawer', 'date picker', 'kanban'"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 20,
+            "default": 8,
+            "description": "Maximum number of results to return (default: 8)"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "get_component",
+      "description": "Get full details and install instructions for a specific Spectrum UI component.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Component name or search term — e.g. 'animated-card', 'kanbanboard', 'event-calendar'"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "list_categories",
+      "description": "List all Spectrum UI component categories with component counts.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {}
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "install_component",
+      "description": "Install a Spectrum UI component into the user's project using the shadcn CLI. This runs `npx shadcn@latest add` with the Spectrum UI registry URL.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Component name to install — e.g. 'animated-card', 'kanbanboard'"
+          },
+          "project_dir": {
+            "type": "string",
+            "description": "Absolute path to the project root. Defaults to current working directory."
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    }
+  ]
+}

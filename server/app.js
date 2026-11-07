@@ -199,9 +199,10 @@ export function createApp({ database = ':memory:', merchant = '', rpc = createDe
       throw new RequestError(400, 'Invalid request address.');
     }
     const path = url.pathname;
+    const isAppPage = path === '/' || /^\/pay\/[0-9a-f-]+$/.test(path);
     const method = request.method;
     const origin = request.headers.origin;
-    const demoNavigation = demoUrl && method === 'GET' && path === '/' &&
+    const demoNavigation = demoUrl && method === 'GET' && isAppPage &&
       request.headers['sec-fetch-mode'] === 'navigate' && request.headers['sec-fetch-dest'] === 'document';
     if ((request.headers['sec-fetch-site'] === 'cross-site' && !demoNavigation) ||
         (origin && origin !== url.origin) || (demoUrl && method === 'POST' && origin !== url.origin)) {
@@ -414,8 +415,7 @@ export function createApp({ database = ':memory:', merchant = '', rpc = createDe
     }
     if (path.startsWith('/api/')) throw new RequestError(404, 'This endpoint does not exist.');
 
-    const appPath = path === '/' || /^\/pay\/[0-9a-f-]+$/.test(path);
-    const file = files.get(appPath ? '/index.html' : path);
+    const file = files.get(isAppPage ? '/index.html' : path);
     if (!file || (method !== 'GET' && method !== 'HEAD')) throw new RequestError(404, 'Page not found.');
     response.setHeader('Cache-Control', 'no-cache');
     response.setHeader('ETag', file.tag);

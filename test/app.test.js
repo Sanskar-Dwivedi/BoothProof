@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
+import { get } from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { mkdtempSync, rmSync, rmdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -150,6 +151,38 @@ test('serves the app and protects local routes from cross-site writes, unsafe pa
   assert.equal((await app.request('/api/orders', { ...newOrder('demo'), amount: '1e2' })).status, 400);
   assert.equal((await app.request('/api/orders', { ...newOrder('demo'), title: 'a'.repeat(5_000) })).status, 413);
   assert.equal((await app.request('/api/orders', newOrder('devnet'))).status, 409);
+});
+
+test('hosted checkout QR links open as top-level pages and still require demo credentials', async t => {
+  const url = new URL('https://boothproof.example');
+  const password = 'a'.repeat(48);
+  const app = await start({ hostedDemo: { url, password } });
+  t.after(() => app.close());
+
+  const fromOutside = (path, headers = {}) => new Promise((resolve, reject) => {
+    get(app.base + path, { headers: {
+      Host: url.host,
+      'Sec-Fetch-Site': 'cross-site',
+      'Sec-Fetch-Mode': 'navigate',
+      'Sec-Fetch-Dest': 'document',
+      ...headers
+    } }, response => {
+      response.resume();
+      resolve(response);
+    }).on('error', reject);
+  });
+
+  const checkout = `/pay/${randomUUID()}`;
+  const auth = { Authorization: `Basic ${Buffer.from(`judge:${password}`).toString('base64')}` };
+  const challenge = await fromOutside(checkout);
+  assert.equal(challenge.statusCode, 401);
+  assert.match(challenge.headers['www-authenticate'], /^Basic /);
+
+  const page = await fromOutside(checkout, auth);
+  assert.equal(page.statusCode, 200);
+  assert.match(page.headers['content-type'], /^text\/html/);
+  assert.equal((await fromOutside(checkout, { ...auth, 'Sec-Fetch-Dest': 'iframe' })).statusCode, 403);
+  assert.equal((await fromOutside('/api/config', auth)).statusCode, 403);
 });
 
 test('invoice API reconciles partial payments, rejects wrong tokens, and preserves booth totals', async t => {

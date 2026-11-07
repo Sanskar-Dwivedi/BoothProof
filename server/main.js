@@ -21,7 +21,7 @@ const server = createApp({
   merchant: renderUrl ? '' : process.env.MERCHANT_WALLET?.trim(),
   rpc: createDevnetRpc(renderUrl ? undefined : process.env.SOLANA_RPC_URL),
   monitoring: !renderUrl,
-  hostedDemo: renderUrl ? { url: renderUrl, password: process.env.BOOTHPROOF_DEMO_PASSWORD } : null
+  hostedDemoUrl: renderUrl
 });
 if(server.services.store.migration.backup) console.log(`Migration backup: ${server.services.store.migration.backup}`);
 

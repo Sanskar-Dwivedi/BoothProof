@@ -1,6 +1,6 @@
 import { createServer } from 'node:http';
 import { readFileSync, readdirSync } from 'node:fs';
-import { createHash, timingSafeEqual } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import { resolve, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openStore, PaymentError } from './store.js';
@@ -116,14 +116,11 @@ function invoiceCsv(orders) {
 
 export function createApp({ database = ':memory:', merchant = '', rpc = createDevnetRpc(), seed = true,
   monitoring = true, now = ()=>Date.now(), monitorOptions = {}, migration = {}, walletReview = null,
-  hostedDemo = null } = {}) {
-  const demoUrl = hostedDemo ? new URL(hostedDemo.url) : null;
-  if (demoUrl && (demoUrl.protocol !== 'https:' || !/^[0-9a-f]{48}$/.test(hostedDemo.password ?? ''))) {
-    throw new Error('Hosted demo needs HTTPS and a generated BOOTHPROOF_DEMO_PASSWORD.');
+  hostedDemoUrl = null } = {}) {
+  const demoUrl = hostedDemoUrl ? new URL(hostedDemoUrl) : null;
+  if (demoUrl && demoUrl.protocol !== 'https:') {
+    throw new Error('Hosted demo requires an HTTPS URL.');
   }
-  const demoAuthorization = demoUrl
-    ? Buffer.from(`Basic ${Buffer.from(`judge:${hostedDemo.password}`).toString('base64')}`)
-    : null;
   if (merchant && (!isAddress(merchant) || merchant === '11111111111111111111111111111111')) {
     throw new Error('MERCHANT_WALLET must be a public Solana receiving wallet address.');
   }
@@ -207,14 +204,6 @@ export function createApp({ database = ':memory:', merchant = '', rpc = createDe
     if ((request.headers['sec-fetch-site'] === 'cross-site' && !demoNavigation) ||
         (origin && origin !== url.origin) || (demoUrl && method === 'POST' && origin !== url.origin)) {
       throw new RequestError(403, 'Requests must come from this Boothproof tab.');
-    }
-
-    if (demoAuthorization) {
-      const supplied = Buffer.from(request.headers.authorization ?? '');
-      if (supplied.length !== demoAuthorization.length || !timingSafeEqual(supplied, demoAuthorization)) {
-        response.setHeader('WWW-Authenticate', 'Basic realm="Boothproof demo"');
-        return sendJson(response, 401, { error: 'Enter the demo credentials.' });
-      }
     }
 
     if (method === 'GET' && path === '/api/config') {

@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
-import { get } from 'node:http';
+import { request } from 'node:http';
+import { text } from 'node:stream/consumers';
 import { randomUUID } from 'node:crypto';
 import { mkdtempSync, rmSync, rmdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -153,36 +154,37 @@ test('serves the app and protects local routes from cross-site writes, unsafe pa
   assert.equal((await app.request('/api/orders', newOrder('devnet'))).status, 409);
 });
 
-test('hosted checkout QR links open as top-level pages and still require demo credentials', async t => {
+test('public demo checkout opens from QR links and blocks cross-site API requests', async t => {
   const url = new URL('https://boothproof.example');
-  const password = 'a'.repeat(48);
-  const app = await start({ hostedDemo: { url, password } });
+  const app = await start({ hostedDemoUrl: url });
   t.after(() => app.close());
 
-  const fromOutside = (path, headers = {}) => new Promise((resolve, reject) => {
-    get(app.base + path, { headers: {
-      Host: url.host,
-      'Sec-Fetch-Site': 'cross-site',
-      'Sec-Fetch-Mode': 'navigate',
-      'Sec-Fetch-Dest': 'document',
-      ...headers
-    } }, response => {
-      response.resume();
-      resolve(response);
-    }).on('error', reject);
+  const requestDemo = (path, headers = {}, data) => new Promise((resolve, reject) => {
+    const req = request(app.base + path, {
+      method: data === undefined ? 'GET' : 'POST',
+      headers: { Host: url.host, ...(data === undefined ? {} : { 'Content-Type': 'application/json' }), ...headers }
+    }, response => {
+      text(response).then(body => resolve({ status: response.statusCode, headers: response.headers, body }), reject);
+    });
+    req.on('error', reject);
+    req.end(data === undefined ? undefined : JSON.stringify(data));
   });
 
-  const checkout = `/pay/${randomUUID()}`;
-  const auth = { Authorization: `Basic ${Buffer.from(`judge:${password}`).toString('base64')}` };
-  const challenge = await fromOutside(checkout);
-  assert.equal(challenge.statusCode, 401);
-  assert.match(challenge.headers['www-authenticate'], /^Basic /);
+  const order = newOrder('demo');
+  const created = await requestDemo('/api/orders', { Origin: url.origin }, order);
+  assert.equal(created.status, 201);
 
-  const page = await fromOutside(checkout, auth);
-  assert.equal(page.statusCode, 200);
+  const checkout = `/pay/${order.id}`;
+  const scanner = { 'Sec-Fetch-Site': 'cross-site', 'Sec-Fetch-Mode': 'navigate', 'Sec-Fetch-Dest': 'document' };
+  const page = await requestDemo(checkout, scanner);
+  assert.equal(page.status, 200);
   assert.match(page.headers['content-type'], /^text\/html/);
-  assert.equal((await fromOutside(checkout, { ...auth, 'Sec-Fetch-Dest': 'iframe' })).statusCode, 403);
-  assert.equal((await fromOutside('/api/config', auth)).statusCode, 403);
+  const customer = await requestDemo(`/api/checkout/${order.id}`);
+  assert.equal(customer.status, 200);
+  assert.equal(JSON.parse(customer.body).order.id, order.id);
+  assert.equal((await requestDemo(checkout, { ...scanner, 'Sec-Fetch-Dest': 'iframe' })).status, 403);
+  assert.equal((await requestDemo('/api/config', scanner)).status, 403);
+  assert.equal((await requestDemo('/api/orders', { Origin: 'https://unrelated.example' }, newOrder('demo'))).status, 403);
 });
 
 test('invoice API reconciles partial payments, rejects wrong tokens, and preserves booth totals', async t => {

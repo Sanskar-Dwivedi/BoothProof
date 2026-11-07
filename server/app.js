@@ -1,6 +1,6 @@
 import { createServer } from 'node:http';
 import { readFileSync, readdirSync } from 'node:fs';
-import { createHash } from 'node:crypto';
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { resolve, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openStore, PaymentError } from './store.js';
@@ -115,7 +115,15 @@ function invoiceCsv(orders) {
 }
 
 export function createApp({ database = ':memory:', merchant = '', rpc = createDevnetRpc(), seed = true,
-  monitoring = true, now = ()=>Date.now(), monitorOptions = {}, migration = {}, walletReview = null } = {}) {
+  monitoring = true, now = ()=>Date.now(), monitorOptions = {}, migration = {}, walletReview = null,
+  hostedDemo = null } = {}) {
+  const demoUrl = hostedDemo ? new URL(hostedDemo.url) : null;
+  if (demoUrl && (demoUrl.protocol !== 'https:' || !/^[0-9a-f]{48}$/.test(hostedDemo.password ?? ''))) {
+    throw new Error('Hosted demo needs HTTPS and a generated BOOTHPROOF_DEMO_PASSWORD.');
+  }
+  const demoAuthorization = demoUrl
+    ? Buffer.from(`Basic ${Buffer.from(`judge:${hostedDemo.password}`).toString('base64')}`)
+    : null;
   if (merchant && (!isAddress(merchant) || merchant === '11111111111111111111111111111111')) {
     throw new Error('MERCHANT_WALLET must be a public Solana receiving wallet address.');
   }
@@ -180,17 +188,32 @@ export function createApp({ database = ':memory:', merchant = '', rpc = createDe
   }
 
   async function handle(request, response) {
-    const host = request.headers.host;
-    if (!/^(localhost|127\.0\.0\.1)(:\d{1,5})?$/i.test(host ?? '')) {
-      throw new RequestError(403, 'Use the local Boothproof address.');
+    const host = request.headers.host?.toLowerCase();
+    const allowedHost = demoUrl ? host === demoUrl.host : /^(localhost|127\.0\.0\.1)(:\d{1,5})?$/i.test(host ?? '');
+    if (!allowedHost) {
+      throw new RequestError(403, demoUrl ? 'Use the Boothproof demo address.' : 'Use the local Boothproof address.');
     }
-    const url = new URL(request.url, `http://${host}`);
-    if (url.host !== host.toLowerCase()) throw new RequestError(400, 'Invalid request address.');
+
+    const url = new URL(request.url, demoUrl ?? `http://${host}`);
+    if (url.host !== host || (demoUrl && url.origin !== demoUrl.origin)) {
+      throw new RequestError(400, 'Invalid request address.');
+    }
     const path = url.pathname;
     const method = request.method;
-    if (request.headers['sec-fetch-site'] === 'cross-site' ||
-        (request.headers.origin && request.headers.origin !== url.origin)) {
+    const origin = request.headers.origin;
+    const demoNavigation = demoUrl && method === 'GET' && path === '/' &&
+      request.headers['sec-fetch-mode'] === 'navigate' && request.headers['sec-fetch-dest'] === 'document';
+    if ((request.headers['sec-fetch-site'] === 'cross-site' && !demoNavigation) ||
+        (origin && origin !== url.origin) || (demoUrl && method === 'POST' && origin !== url.origin)) {
       throw new RequestError(403, 'Requests must come from this Boothproof tab.');
+    }
+
+    if (demoAuthorization) {
+      const supplied = Buffer.from(request.headers.authorization ?? '');
+      if (supplied.length !== demoAuthorization.length || !timingSafeEqual(supplied, demoAuthorization)) {
+        response.setHeader('WWW-Authenticate', 'Basic realm="Boothproof demo"');
+        return sendJson(response, 401, { error: 'Enter the demo credentials.' });
+      }
     }
 
     if (method === 'GET' && path === '/api/config') {

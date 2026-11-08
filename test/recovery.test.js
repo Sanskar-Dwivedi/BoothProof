@@ -196,6 +196,21 @@ test('strict recovery verifier rejects invalid evidence and supports legacy/v0, 
   assert.equal(verifyPayment(order,valid.signature,missingTime).payment.chain_time,null);
 });
 
+test('a Phantom direct transfer repeating the signing authority stays unallocated', async t => {
+  const s = setup(t), order = invoice(s.store);
+  const { signature, transaction } = demoRecovery(order, fixedTime);
+  const accounts = transaction.transaction.message.instructions[0].accounts;
+  accounts.push(accounts[1]);
+  assert.equal(verifyPayment(order, signature, transaction).reason, 'Unknown extra transfer accounts are unsupported.');
+  accounts[4] = accounts[3];
+  assert.equal(verifyPayment(order, signature, transaction, { requireReference: true }).code, 'INVALID_REFERENCE');
+  s.transactions.set(signature, transaction);
+  const result = await s.payments.verify(order, signature);
+  assert.equal(result.outcome, 'unallocated');
+  assert.equal(result.amount_units, '30000000');
+  assert.equal(result.invoice.invoice.remaining_units, '50000000');
+});
+
 test('reference precedence prevents cross-invoice credit and malformed binding fallback; reference-free suggestions remain nonbinding',async t=>{
   const s=setup(t),a=invoice(s.store),b=invoice(s.store),sample=put(s,a,'reference',30_000_000);
   await assert.rejects(s.payments.verify(b,sample.signature),e=>e.code==='REFERENCE_CONFLICT');

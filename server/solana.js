@@ -146,7 +146,9 @@ export function verifyPayment(order, signature, response, { knownReferences = ne
   const bound = indices.length===required+1 && keys[indices[required]]===order.reference &&
     isReadonly(indices[required]) && indices[required]>=numRequiredSignatures && instruction_index===message.instructions.length-1;
   if ((known.length || requireReference) && !bound) return reject('INVALID_REFERENCE','The known reference is not a read-only account on the final transfer instruction.');
-  if (indices.length!==required && !bound) return unsupported('Unknown extra transfer accounts are unsupported.');
+  // Phantom can repeat the signing authority in a direct TransferChecked.
+  const repeatsAuthority = checked && indices.length===required+1 && indices[required]===indices[required-1];
+  if (indices.length!==required && !bound && !repeatsAuthority) return unsupported('Unknown extra transfer accounts are unsupported.');
   if(meta.innerInstructions!=null&&!Array.isArray(meta.innerInstructions)) return unsupported('Invalid inner instruction evidence.');
   for (const group of meta.innerInstructions ?? []) {
     if(!group||typeof group!=='object') return unsupported('Invalid inner instruction group.');

@@ -52,11 +52,12 @@ async page => {
     async function assertLatest() {
       const selected = await checkout.locator('[data-payment-option][aria-pressed="true"]').evaluateAll(buttons =>
         buttons.map(element => element.dataset.paymentOption));
-      const request = await checkout.locator('.customer-help').innerText();
-      const url = await checkout.getByRole('link', { name: 'Open in wallet', exact: true }).getAttribute('href');
+      const request = await checkout.locator('.customer-help').filter({ hasText: /^Selected request:/ }).innerText();
+      const url = await checkout.getByRole('link', { name: 'Open in Solana Pay wallet', exact: true }).getAttribute('href');
+      const shared = await checkout.getByRole('button', { name: 'Copy checkout link', exact: true }).getAttribute('data-copy');
       const amount = latest === 'deposit' ? '30.00' : '50.00';
       if (selected.length !== 1 || selected[0] !== latest || !request.startsWith(`Selected request: ${amount} USDC.`) ||
-          new URL(url).searchParams.get('amount') !== amount) {
+          new URL(url).searchParams.get('amount') !== amount || shared !== `${base}/pay/${order.id}`) {
         throw new Error(`Expected ${latest} at ${amount} USDC, got ${JSON.stringify({ selected, request, url })}`);
       }
     }

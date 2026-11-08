@@ -210,7 +210,7 @@ async function drawQr(node, value) {
     qr.addData(value, 'Byte');
     qr.make();
     if (node.isConnected) {
-      node.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 16, scalable: true, alt: 'Scan this payment request' });
+      node.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 16, scalable: true, alt: 'Scan to open checkout' });
     }
   } catch {
     if (node.isConnected) node.textContent = 'QR unavailable. Use the link.';
@@ -432,7 +432,7 @@ function renderActive(motion = {}) {
     return;
   }
   const receiptReplay = state.config?.devnetReceiptReplay && order.mode === 'devnet';
-  const link = (!receiptReplay && order.payment_url) || new URL(orderLink(order), location.origin).href;
+  const link = new URL(orderLink(order), location.origin).href;
   const invoice = order.invoice;
   const remaining = invoice ? BigInt(invoice.remaining_units) : BigInt(order.amount_units);
   panel.innerHTML = `
@@ -446,7 +446,7 @@ function renderActive(motion = {}) {
       <div class="payment-core">
         ${receiptReplay ? '' : '<div class="qr" data-qr></div>'}
         <div><div class="due">${invoice ? unitsLabel(invoice.remaining_units) : display(order.amount_units)} <small>USDC</small></div>
-          <p>${receiptReplay ? 'Open checkout to review the recorded Devnet payment.' : order.mode === 'demo' ? 'Open the local checkout to try a payment.' : 'Scan with a Solana Pay wallet set to Devnet.'}</p>
+          <p>${receiptReplay ? 'Open checkout to review the recorded Devnet payment.' : 'Scan to open the customer checkout.'}</p>
           <a class="text-link" href="${orderLink(order)}">Open checkout ${icon('external')}</a>
         </div>
       </div>` : ''}
@@ -456,7 +456,7 @@ function renderActive(motion = {}) {
         : invoice ? `${remaining > 0n ? `<button class="button quiet small" type="button" data-scenario="remaining">Pay remaining balance</button>` : ''}<a class="button quiet small" href="${orderLink(order)}">Open statement ${icon('external')}</a>`
         : order.receipt ? `<a class="button quiet small" href="${orderLink(order)}">${icon('receipt')} Open receipt</a>`
         : `<button class="button quiet small" type="button" data-scenario="exact">${icon('check')} Simulate exact payment</button>`}
-      <button class="icon-button copy-button" type="button" data-copy="${escape(order.receipt ? new URL(orderLink(order), location.origin).href : link)}" aria-label="${invoice && remaining === 0n ? 'Copy statement link' : order.receipt ? 'Copy receipt link' : receiptReplay ? 'Copy checkout link' : 'Copy payment link'}">${icon('copy')}</button>
+      <button class="icon-button copy-button" type="button" data-copy="${escape(link)}" aria-label="${invoice && remaining === 0n ? 'Copy statement link' : order.receipt ? 'Copy receipt link' : 'Copy checkout link'}">${icon('copy')}</button>
     </div>
     ${invoice?`${monitoringBlock(order)}${reviewBlock(order)}<div class="statement-tools"><a class="text-link" href="/api/invoices/${order.id}/history.csv" download>Export allocation history ${icon('download')}</a><a class="text-link" href="${orderLink(order)}">Printable statement ${icon('external')}</a></div>`:''}
     ${evidenceBlock(order)}${invoice?timelineBlock(order):''}
@@ -636,6 +636,7 @@ function renderCheckout(order) {
   state.checkout=order;
   const invoice=order.invoice,request=state.checkoutRequest?.id===order.id?state.checkoutRequest:null;
   const option=request?.option??'balance',amount=request?.amount_units??invoice.remaining_units,paymentLink=request?.payment_url??order.payment_url;
+  const checkoutLink = new URL(orderLink(order), location.origin).href;
   const remaining=BigInt(invoice.remaining_units)>0n;
   const wallet=order.mode==='devnet'?state.walletReview:null;
   const awaitingAssignment=order.recovery.awaiting_allocation>0;
@@ -654,14 +655,15 @@ function renderCheckout(order) {
     ${order.recovery.awaiting_allocation?'<p class="overpayment-note" role="status">Your reported transfer is verified and awaits merchant allocation. It has not reduced this balance. Wait for allocation before paying again.</p>':''}
     ${reviewLabel?`<div class="payment-buttons"><a class="button primary" href="${escape(wallet.url)}">${reviewLabel} ${icon('arrow')}</a></div>
       <p class="customer-help">${direct?'Review the direct transfer without an invoice reference.':`Review the ${unitsLabel(amount)} USDC balance with its invoice reference.`}</p>`:''}
-    ${remaining&&!wallet?.replay&&!(wallet&&awaitingAssignment)?`<div class="payment-options" aria-label="Choose payment amount">${BigInt(invoice.deposit_remaining_units)>0n?`<button class="button quiet small" data-payment-option="deposit" aria-pressed="${option==='deposit'}">Pay deposit · ${unitsLabel(invoice.deposit_remaining_units)} USDC</button>`:''}<button class="button quiet small" data-payment-option="balance" aria-pressed="${option==='balance'}">Pay remaining balance · ${unitsLabel(invoice.remaining_units)} USDC</button></div>
+    ${remaining&&!wallet?.replay&&!reviewLabel&&!(wallet&&awaitingAssignment)?`<div class="payment-options" aria-label="Choose payment amount">${BigInt(invoice.deposit_remaining_units)>0n?`<button class="button quiet small" data-payment-option="deposit" aria-pressed="${option==='deposit'}">Pay deposit · ${unitsLabel(invoice.deposit_remaining_units)} USDC</button>`:''}<button class="button quiet small" data-payment-option="balance" aria-pressed="${option==='balance'}">Pay remaining balance · ${unitsLabel(invoice.remaining_units)} USDC</button></div>
       <p class="customer-help">Selected request: ${unitsLabel(amount)} USDC. ${order.mode==='demo'?'Offline practice · no funds move.':'Use a Solana Pay wallet set to Devnet. Review the amount before signing.'}</p>
-      ${order.mode==='demo'?`<button class="button primary" data-checkout-pay="${option}">Simulate ${option==='deposit'?'deposit':'remaining balance'} ${icon('arrow')}</button>`:`<div class="qr customer-qr" data-qr></div><div class="payment-buttons"><a class="button ${wallet?'quiet':'primary'}" href="${escape(paymentLink)}">${wallet?'Open Solana Pay link':'Open in wallet'} ${icon('external')}</a><button class="button quiet" data-copy="${escape(paymentLink)}">Copy payment link ${icon('copy')}</button></div>`}`:''}
+      ${order.mode==='demo'?`<button class="button primary" data-checkout-pay="${option}">Simulate ${option==='deposit'?'deposit':'remaining balance'} ${icon('arrow')}</button>`:`<div class="payment-buttons"><a class="button primary" href="${escape(paymentLink)}">Open in Solana Pay wallet ${icon('external')}</a></div>`}`:''}
+    ${remaining&&order.mode==='devnet'&&!wallet?.replay?`<p class="customer-help">Scan to open the checkout page.</p><div class="qr customer-qr" data-qr></div><button class="button quiet" type="button" data-copy="${escape(checkoutLink)}">Copy checkout link ${icon('copy')}</button>`:''}
     <dl class="payment-facts"><div><dt>Receiving wallet</dt><dd class="mono">${escape(order.recipient)}</dd></div></dl>
     <div class="payment-buttons"><button class="button quiet small" data-action="check">${icon('refresh')} Check payment</button><button class="button quiet small" data-action="print">${icon('receipt')} Print statement</button></div>
     ${monitoringBlock(order)}${evidenceBlock(order)}${signatureForm('I already paid')}
     <p class="inline-note" id="payment-note" aria-live="polite"></p></section><p class="customer-caption">${wallet?.replay?'Replay of finalized Devnet payments in an isolated ledger':order.mode==='demo'?'Simulated evidence · no on-chain transaction':'Solana Devnet · test USDC only'}</p></div>`;
-  const qr=$('[data-qr]');if(qr)void drawQr(qr,paymentLink);
+  const qr=$('[data-qr]');if(qr)void drawQr(qr,checkoutLink);
   restore();if(!previous)revealWorkspace(content);
 }
 
@@ -699,7 +701,7 @@ function renderLegacyCheckout(order) {
     <p class="customer-caption">${order.mode === 'demo' ? 'Demo receipt · No on-chain transaction' : 'Devnet receipt · Test tokens only'}</p>
   </div>`;
   const qr = $('[data-qr]');
-  if (qr) void drawQr(qr, order.payment_url);
+  if (qr) void drawQr(qr, new URL(orderLink(order), location.origin).href);
   restore();
   if (!previous) revealWorkspace(content);
   else revealPayment(content, { settled: previous.status !== 'paid' && order.status === 'paid' });

@@ -1,16 +1,72 @@
 # Boothproof
 
-A local invoice reconciliation and payment recovery desk for freelancers and small studios receiving USDC. Node.js 24+, built-in SQLite, and vanilla JavaScript; no runtime package installation.
+**A USDC invoice desk on Solana that never guesses which invoice a payment belongs to.**
 
-A client owes **50 USDC** and sends **30 USDC without the invoice reference**. Boothproof verifies receipt, keeps the transfer unallocated, and leaves the invoice at 50 USDC due. The merchant assigns the whole payment, leaving 20 USDC. A referenced checkout payment settles that remainder. Replaying either signature cannot add credit again.
+Built for freelancers and small studios: verify incoming payments, recover transfers with missing references, and keep an auditable invoice history.
+
+Solo project · First time building on Solana · Intended Solana Hackathon (MLH) tracks: **Best Beginner Hack**, **DeFi**
+
+[Run locally](#run-locally) · [Practice the flow](#practice-the-recovery-flow) · [Devnet acceptance record](DEVNET_ACCEPTANCE.md) · [Demo runbook](REHEARSAL.md)
+
+![Boothproof invoice workspace showing the invoice register and payment details](design/screenshots/desktop-invoices.jpg)
+
+## The problem
+
+A client owes **50 USDC** and sends **30 USDC without the invoice reference**. The money arrives, but the transfer does not identify the invoice. Matching by amount, timing, or a familiar wallet address can put the payment against the wrong bill.
+
+Boothproof separates two questions: **Did the payment arrive?** and **Which invoice should it pay?** On-chain evidence answers the first. A valid invoice reference or an explicit merchant decision answers the second.
+
+## What happens in Boothproof
+
+| Step | Payment handling | Invoice balance |
+| --- | --- | --- |
+| Client sends 30 USDC without a reference | Verify the transfer on Solana; keep it unallocated in **Recovery** | **0 received · 50 due** |
+| Merchant reviews and assigns the payment | Apply the whole 30 USDC to the selected invoice and record the decision | **30 received · 20 due** |
+| Client pays the remaining 20 USDC with the invoice reference | Verify and match automatically | **50 received · 0 due** |
+| Either signature is submitted again, or the local app restarts | Reuse the saved payment record; never add credit twice | **50 received · 0 due** |
+
+A reported invoice is only a suggestion until assignment. Invalid or unsupported transfers never become invoice credit.
+
+## How it uses Solana
+
+Solana is the payment and verification layer. Invoice records, recovery decisions, and audit history live in SQLite. **There is no custom on-chain program:** Boothproof uses the standard SPL Token Program, Solana Pay transfer requests, and Solana RPC.
+
+| Solana capability | How Boothproof uses it |
+| --- | --- |
+| **USDC token transfers** | Payments move directly between the payer's and merchant's token accounts. The verifier checks the configured Devnet USDC mint, six-decimal amounts, and ownership of the destination account. |
+| **Solana Pay reference keys** | Each invoice has a unique reference in its payment URL and QR code. Automatic matching requires that reference as a read-only, non-signing extra account on the final transfer instruction. An amount match alone is insufficient. |
+| **Finalized transaction evidence** | The server retrieves the transaction through RPC and verifies success, recipient ownership, source debit, and destination credit. A screenshot or submitted signature alone is not proof of payment. |
+| **Reference-based transaction lookup** | The monitor uses `getSignaturesForAddress` to discover referenced payments and `getTransaction` to verify them. A reference-free payment enters Recovery when its signature is reported; this is not a whole-wallet scanner. |
+| **Wallet-controlled signing** | The payer approves in their own wallet. Boothproof never requests a private key or seed phrase and does not hold customer funds. |
+
+The reference mechanism follows the [Solana Pay transfer-request specification](https://solana.com/docs/tools/solana-pay/specification/version1). Receiving-wallet and token-account handling follow Solana's [payment conventions](https://solana.com/docs/payments/accept-payments).
+
+Small payment fees also suit deposits and partial invoice payments. In the recorded Devnet run, each transfer cost **80,000 lamports (0.00008 test SOL)**, including a priority fee. This is an observed test-network fee, not a guaranteed price; Solana fees include a base fee and an optional [priority fee](https://solana.com/docs/core/fees/fee-structure).
+
+## Real Devnet proof
+
+The [acceptance record](DEVNET_ACCEPTANCE.md) documents the complete two-wallet flow in Phantom on **November 7, 2026 (IST)**: an unreferenced 30 USDC payment, manual assignment, and a referenced 20 USDC payment that settled the invoice. These are real Devnet transactions using test tokens, separate from the simulated demo.
+
+| Payment | Role in the flow | Public proof |
+| --- | --- | --- |
+| **30 USDC** | Verified without a reference; credited only after merchant assignment | [View finalized transaction](https://explorer.solana.com/tx/2gGmc7KyTJG3abNie78tRgT5U6S6w6k3YgPuYmzTzPi48kPJ3JMurhs1kgrvN3ceVeRKyzS7eyAbvxW7s3eqpnfY?cluster=devnet) |
+| **20 USDC** | Matched by invoice reference; settled the remaining balance | [View finalized transaction](https://explorer.solana.com/tx/3rspW6Tdq8T3U87jjgmgv85pxSu6sFUbPun3V1YVPZ7Cv45H9kG1rwXvumafrz6UgtnyipUChqYWCyrm4RYEhPuw?cluster=devnet) |
+
+Both signature replays and an actual local restart preserved the ledger and history export. Wallet addresses, slots, fees, and observed results are recorded in [DEVNET_ACCEPTANCE.md](DEVNET_ACCEPTANCE.md).
 
 ## Run locally
 
-```powershell
-npm.cmd start
+Requires **Node.js 24+**. No `npm install` or build step is needed; the QR library and fonts are included in the repository.
+
+```bash
+git clone https://github.com/Sanskar-Dwivedi/BoothProof.git
+cd BoothProof
+npm start
 ```
 
-Open [Invoices](http://127.0.0.1:4173/#invoices). The server binds to **127.0.0.1**. Keep one local operator and one receiving wallet. Customer checkout is a filtered local view, **not authentication**. Do not expose this server publicly.
+Open [Invoices](http://127.0.0.1:4173/#invoices). On Windows PowerShell, use `npm.cmd` if script execution policy blocks `npm`.
+
+Local mode binds to **127.0.0.1** and supports one operator and one receiving wallet. Customer checkout is a filtered local view, **not authentication**. Do not expose the local Devnet desk publicly.
 
 Data is saved in `data/boothproof.sqlite`. Stop an older application process before the first upgraded startup, including copies on another port. The main entrypoint checks its port before opening the database, and the new store holds an exclusive process lock.
 
@@ -19,11 +75,11 @@ npm.cmd test
 npm.cmd run devnet:check
 ```
 
-The tests use isolated databases and controlled RPC responses, without external networking. The Devnet check contacts the configured network and checks the finalized slot and canonical USDC mint; it does not exercise a payment or move funds.
+The test suite currently passes **50 tests**. It uses isolated databases, local HTTP servers, and controlled RPC responses; it does not require an external network. The Devnet check contacts the configured network and checks the finalized slot and canonical USDC mint; it does not exercise a payment or move funds.
 
 ## Practice the recovery flow
 
-New databases contain three invoice examples: an unpaid 50 USDC invoice with a fixed 30 USDC deposit, a partially paid invoice, and an overdue invoice with an excluded wrong-token attempt. Existing invoices are never overwritten. Legacy booth examples and saved booth routes remain available through Guide.
+Try the core flow in about two minutes, with **no wallet or test tokens required**. New databases contain three invoice examples: an unpaid 50 USDC invoice with a fixed 30 USDC deposit, a partially paid invoice, and an overdue invoice with an excluded wrong-token attempt. Existing invoices are never overwritten. Legacy booth examples and saved booth routes remain available through Guide.
 
 1. In **Demo mode**, select the 50 USDC invoice. Open **Practice invoice payments · offline** and choose **Practice reference-free 30 USDC**.
 2. The transfer is verified, but received remains zero. Open **Recovery** to inspect its exact amount, source wallet, recipient, provenance, times, and suggested invoice.
@@ -31,7 +87,12 @@ New databases contain three invoice examples: an unpaid 50 USDC invoice with a f
 4. Open the customer statement. Received is 30 USDC and remaining is 20 USDC. The deposit has already been met. Choose **Simulate remaining balance**.
 5. Report either saved signature through **I already paid**, or repeat the practice action. Received stays 50 USDC. Restart and open the same statement to inspect saved evidence.
 
-Demo signatures come from deterministic server fixtures. Repeating an action reuses its signature. `workspace-recovery-demo-simulated.webm`, `workspace-simulated-*`, and `workspace-focused-*` record the offline QA run. The `devnet-live-*` and `devnet-acceptance-*` artifacts record the separate live Devnet run, including both finalized payments and the settled ledger. [Live acceptance record](DEVNET_ACCEPTANCE.md)
+**Demo payments are simulated**, with fake signatures generated by deterministic server fixtures. Repeating an action reuses its signature. Local demo data persists in SQLite. The Render-hosted demo configuration instead uses an in-memory ledger, disables Devnet payments and background monitoring, and resets when the server restarts.
+
+The offline QA artifacts (`workspace-recovery-demo-simulated.webm`, `workspace-simulated-*`, and `workspace-focused-*`) are separate from the live Devnet artifacts (`devnet-live-*` and `devnet-acceptance-*`). Recordings and evidence files under `output/` are local artifacts excluded from Git; a fresh clone does not include them. The [acceptance record](DEVNET_ACCEPTANCE.md) and public Explorer links above remain available.
+
+<details>
+<summary><strong>Merchant behavior, accounting rules, and API details</strong></summary>
 
 ## Merchant and customer behavior
 
@@ -48,6 +109,8 @@ Allocation API clients must send `expected_invoice_revision` as the decimal stri
 Amounts are calculated with integer units and `BigInt`. Invoice and deposit creation accept 0.01–9,999.99 USDC with at most two decimals; the deposit must be below the total. Verified payments and remainders retain all six decimals. A deposit is a **cumulative fixed target**, reduced by all active payments, including recovered payments. The server generates current deposit/balance requests using the same reference. An older copied URL can still produce an excess payment, which remains visible.
 
 Five-column CSV imports remain `invoice_number,client,title,amount,due_date`. Imports are atomic, at most 100 rows, and identical imports are skipped. Imported invoices have no deposit. Statement exports preserve existing columns and append deposit/review information. Per-invoice history CSV distinguishes verified transfers, assignments, reversals, and acknowledgments, and escapes spreadsheet formulas in user text.
+
+</details>
 
 ## Solana Devnet
 
@@ -80,6 +143,26 @@ Supported verification:
 Unsupported: CPI-only payments, multiple transfers, delegated or multisig forms outside the parser, Token-2022, missing ownership/balance evidence, unknown companion programs, and transaction versions above v0. Unsupported/rejected transfers create no credit. A `null` finalized lookup means **not found at finalized commitment**, not proof that the transaction does not exist. Retry pending signatures without paying again.
 
 No mainnet, whole-wallet discovery, payment splitting, authentication, multiple merchants, refunds, swaps, subscriptions, AI features, or custom programs are included.
+
+## Lessons from building on Solana
+
+- **A wallet address is not a token account.** USDC sits in a token account, so verification must establish who owns the destination, as well as which mint it holds.
+- **Not found does not mean nonexistent.** A finalized lookup can return `null` before a payment is available at that commitment. Boothproof keeps that signature pending for retry instead of telling the customer to pay again.
+- **A fee quote can change before signing.** The recorded requests quoted 5,000 lamports before wallet adjustments; each signed transfer cost 80,000 lamports with the priority fee included.
+- **Real wallet behavior belongs in tests.** Phantom repeated the signing authority in a direct transfer. The verifier handles that form, and a regression test ensures it remains unallocated without an invoice reference.
+- **Connecting a wallet is not an end-to-end payment test.** The acceptance run checked signed transfers, finalized evidence, allocation, duplicate submissions, and restart persistence.
+
+## Built with and disclosure
+
+- **Application:** Node.js 24+, built-in SQLite, plain JavaScript, HTML, and CSS. Amounts use integer token units and `BigInt`.
+- **Solana integration:** Devnet RPC, standard SPL Token transfers, Solana Pay URLs and QR codes, and a local Phantom review helper using Wallet Standard.
+- **Interface:** vendored `qrcode`, self-hosted Space Grotesk and Manrope fonts (OFL), and native adaptations of Spectrum UI patterns (Apache 2.0). See [design attributions](design/README.md).
+- **Verification and hosting:** Node's built-in test runner, Playwright browser checks, and a Render-specific simulated demo configuration.
+- **Project context:** solo, first time building on Solana; intended tracks are Best Beginner Hack and DeFi. The repository records pre-event rehearsal work. Submission eligibility and permission to reuse that work are **unconfirmed**; no organizer approval is recorded.
+- **AI assistance:** AI coding assistants were used for code, tests, and documentation. This README revision used OpenAI Codex; the repository does not establish a complete list of earlier assistants.
+
+<details>
+<summary><strong>Operations, migration, and detailed verification</strong></summary>
 
 ## Background checking
 
@@ -131,10 +214,10 @@ playwright-cli -s=boothproof-review run-code --filename scripts/browser-review-r
 playwright-cli -s=boothproof-review close
 ```
 
-Stop the review server with Ctrl+C when the checks finish. The Chrome checks verified payment-option ordering in both directions, stale errors and loading state, delayed responses after settlement, stale previews, recovery conflicts, and desktop and 360px layouts. `npm.cmd test` reported **48 passed, 0 failed**, including recovery arriving during unsigned wallet preparation.
+Stop the review server with Ctrl+C when the checks finish. The recorded Chrome checks verified payment-option ordering in both directions, stale errors and loading state, delayed responses after settlement, stale previews, recovery conflicts, and desktop and 360px layouts. `npm.cmd test` was rerun on November 8, 2026 (IST): **50 passed, 0 failed**, including recovery arriving during unsigned wallet preparation.
 
 The primary hackathon recording shows the checkout-linked Phantom flow in one take. It re-verifies the two earlier finalized Devnet receipts with live RPC in a fresh replay ledger. [42-second hackathon take](output/playwright/hackathon-one-take-devnet-replay.webm) · [Runbook](REHEARSAL.md) · [Offline fallback](output/playwright/workspace-recovery-demo-simulated.webm)
 
-This code is pre-event rehearsal work. Submission eligibility and permission to reuse it are **unconfirmed**; no organizer approval is recorded. Disclose prior work and AI assistance according to the event's requirements.
-
 Technical references: [Solana Pay binding specification](https://solana.com/docs/tools/solana-pay/specification/version1), [transaction metadata](https://solana.com/docs/rpc/json-structures), [finalized transaction lookup](https://solana.com/docs/rpc/http/gettransaction), [paginated reference history](https://solana.com/docs/rpc/http/getsignaturesforaddress), [official Solana development skill and references](https://github.com/solana-foundation/solana-dev-skill/tree/main/skills/solana-dev), [Phantom legacy signing](https://docs.phantom.com/solana/sending-a-transaction), [Phantom v0 signing](https://docs.phantom.com/solana/sending-a-transaction-1), [Phantom test networks](https://help.phantom.com/articles/use-testnets-in-phantom-5997313271699), [SQLite consistent backups](https://sqlite.org/lang_vacuum.html). Existing fonts, theme, QR library, and [design attributions](design/README.md) are retained.
+
+</details>
